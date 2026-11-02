@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: lb-sentinel-demo
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app.py
+    healthCheckPath: /health
+    envVars:
+      - key: LB_HOST
+        value: 0.0.0.0

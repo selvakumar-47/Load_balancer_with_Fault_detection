@@ -1,6 +1,7 @@
 import os
 import atexit
 from flask import Flask, render_template, send_from_directory
+from waitress import serve
 from config import Config
 from database.db import init_db
 from core.load_balancer import LoadBalancer
@@ -75,5 +76,5 @@ if __name__ == "__main__":
     print(f"[LoadBalancer] Self-Health endpoint:   http://{Config.HOST}:{Config.PORT}/health")
     print("=" * 70)
 
-    # Run Flask server
-    app.run(host=Config.HOST, port=Config.PORT, debug=False, threaded=True)
+    # Run the production WSGI server
+    serve(app, host=Config.HOST, port=Config.PORT, threads=8)

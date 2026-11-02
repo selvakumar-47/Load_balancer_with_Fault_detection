@@ -181,6 +181,17 @@ Open your web browser and navigate to:
 http://127.0.0.1:5000
 ```
 
+### Deploy a Public Demo on Render
+
+The repository includes a Render Blueprint in `render.yaml`. To deploy it:
+
+1. Push the project to GitHub.
+2. Sign in to [Render](https://render.com/) and choose **New → Blueprint**.
+3. Connect the GitHub repository `selvakumar-47/Load_balancer_with_Fault_detection` and deploy the Blueprint.
+4. Open the public URL Render provides for the web service.
+
+The free service may sleep when idle and take a short time to wake up. Its local SQLite database is ephemeral, so data may be lost when the service restarts or redeploys. This demo has no login: anyone with its public URL can use the dashboard, change settings, and inject simulated faults. Do not use it for private data or production traffic.
+
 ---
 
 ## 6. Live Academic Demonstration Walkthrough

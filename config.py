@@ -4,7 +4,7 @@ class Config:
     # Server / App configuration
     SECRET_KEY = os.environ.get("SECRET_KEY", "lb-fault-detection-secret-2026")
     HOST = os.environ.get("LB_HOST", "127.0.0.1")
-    PORT = int(os.environ.get("LB_PORT", 5000))
+    PORT = int(os.environ.get("PORT", os.environ.get("LB_PORT", 5000)))
     DEBUG = os.environ.get("FLASK_DEBUG", "0") == "1"
 
     # SQLite Database
