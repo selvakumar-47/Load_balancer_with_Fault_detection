@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Load Balancer & Fault Recovery Console</title>
+  <link rel="stylesheet" href="/static/css/styles.css">
+  <!-- Chart.js local script with CDN fallback -->
+  <script src="/static/vendor/chart.min.js"></script>
+  <script>
+    if (typeof Chart === 'undefined') {
+      document.write('<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"><\/script>');
+    }
+  </script>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Persistent Navigation Sidebar -->
+    <aside class="app-sidebar">
+      <div class="sidebar-header">
+        <div class="brand-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+            <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+            <line x1="6" y1="6" x2="6.01" y2="6"></line>
+            <line x1="6" y1="18" x2="6.01" y2="18"></line>
+          </svg>
+        </div>
+        <div>
+          <div class="brand-title">LB-SENTINEL</div>
+          <div class="brand-subtitle">Fault & Recovery Console</div>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section-title">Observability</div>
+        <a class="nav-item active" data-view="overview">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+          Overview Dashboard
+        </a>
+        <a class="nav-item" data-view="servers">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
+          Backend Servers
+        </a>
+        <a class="nav-item" data-view="algorithms">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="16 3 21 3 21 8"></polyline><line x1="4" y1="20" x2="21" y2="3"></line><polyline points="21 16 21 21 16 21"></polyline><line x1="15" y1="15" x2="21" y2="21"></line><line x1="4" y1="4" x2="9" y2="9"></line></svg>
+          Load Balancing
+        </a>
+        <a class="nav-item" data-view="circuit-breaker">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+          Circuit Breaker
+        </a>
+
+        <div class="nav-section-title">Intelligence & Testing</div>
+        <a class="nav-item" data-view="recovery-intelligence">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline></svg>
+          Recovery Intelligence
+        </a>
+        <a class="nav-item" data-view="fault-lab">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+          Fault-Injection Lab
+        </a>
+        <a class="nav-item" data-view="logs">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+          Event Logs & CSV
+        </a>
+
+        <div class="nav-section-title">Configuration</div>
+        <a class="nav-item" data-view="settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+          System Settings
+        </a>
+        <a class="nav-item" data-view="docs">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+          Documentation
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="cluster-status-pill">
+          <span class="dot dot-healthy pulse"></span>
+          <span>Health Monitor Active</span>
+        </div>
+        <div style="font-size: 11px; color: var(--text-muted);">
+          Proxy: <span class="mono" style="color: var(--text-accent);">:5000/proxy</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Workspace Container -->
+    <main class="app-main">
+      <!-- Top Navigation Bar -->
+      <header class="top-nav">
+        <div class="top-nav-left">
+          <h1 class="page-title" id="page-title-display">Overview Dashboard</h1>
+          <span class="top-badge" id="top-algo-badge">
+            <span style="color: var(--text-muted);">ALGO:</span>
+            <strong id="header-algo-name" style="color: var(--text-accent);">ROUND_ROBIN</strong>
+          </span>
+          <span class="top-badge" id="top-availability-badge">
+            <span class="dot dot-healthy" id="header-avail-dot"></span>
+            <span id="header-avail-text">100% Availability</span>
+          </span>
+        </div>
+        <div class="top-nav-right">
+          <button class="btn btn-secondary btn-sm" id="btn-manual-refresh">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+            Refresh Now
+          </button>
+          <button class="btn btn-primary btn-sm" id="btn-quick-traffic">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+            Send Test Request
+          </button>
+        </div>
+      </header>
+
+      <!-- View Containers (Single-Page Views) -->
+      <div class="workspace-container">
+        
+        <!-- ==================== VIEW 1: OVERVIEW DASHBOARD ==================== -->
+        <div class="view-pane active" id="view-overview">
+          <!-- 8 Metric Cards Grid -->
+          <div class="metrics-grid">
+            <div class="metric-card">
+              <div class="metric-header">
+                <span class="metric-label">Healthy Servers</span>
+                <span class="badge badge-healthy" id="card-healthy-badge">Online</span>
+              </div>
+              <div class="metric-value" id="card-healthy-val">3 / 3</div>
+              <div class="metric-sub"><span id="card-total-servers">3</span> servers registered</div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-header">
+                <span class="metric-label">Fault / Isolated</span>
+                <span class="badge badge-danger" id="card-unhealthy-badge">0 Open</span>
+              </div>
+              <div class="metric-value" id="card-unhealthy-val">0</div>
+              <div class="metric-sub"><span id="card-recovering-val">0</span> in HALF-OPEN probe</div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-header">
+                <span class="metric-label">Total Requests</span>
+                <span class="badge badge-info">Processed</span>
+              </div>
+              <div class="metric-value" id="card-total-reqs">0</div>
+              <div class="metric-sub"><span id="card-successful-reqs" style="color: var(--color-healthy);">0</span> successful</div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-header">
+                <span class="metric-label">Success Rate</span>
+                <span class="badge badge-healthy" id="card-success-badge">100%</span>
+              </div>
+              <div class="metric-value" id="card-success-rate">100.0%</div>
+              <div class="metric-sub"><span id="card-failed-reqs" style="color: var(--color-danger);">0</span> failed / 5xx</div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-header">
+                <span class="metric-label">Avg Response Time</span>
+                <span class="badge badge-neutral">Latency</span>
+              </div>
+              <div class="metric-value" id="card-avg-latency">0.0 ms</div>
+              <div class="metric-sub">Across all proxied traffic</div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-header">
+                <span class="metric-label">p95 Latency</span>
+                <span class="badge badge-neutral">Tail</span>
+              </div>
+              <div class="metric-value" id="card-p95-latency">0.0 ms</div>
+              <div class="metric-sub">95th percentile latency</div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-header">
+                <span class="metric-label">System Availability</span>
+                <span class="badge badge-healthy">SLA</span>
+              </div>
+              <div class="metric-value" id="card-availability">100.0%</div>
+              <div class="metric-sub">Eligible backends ratio</div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-header">
+                <span class="metric-label">Health Interval</span>
+                <span class="badge badge-info" id="card-probe-interval">3.0s</span>
+              </div>
+              <div class="metric-value" id="card-probe-count">0</div>
+              <div class="metric-sub">Automated probes performed</div>
+            </div>
+          </div>
+
+          <!-- Charts Row -->
+          <div class="grid-2">
+            <div class="panel">
+              <div class="panel-header">
+                <span class="panel-title">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a10 10 0 0 1 10 10h-10z"></path></svg>
+                  Request Distribution Across Backends
+                </span>
+                <span class="badge badge-neutral" id="overview-chart-algo">ROUND_ROBIN</span>
+              </div>
+              <div class="panel-body" style="height: 260px; display: flex; align-items: center; justify-content: center;">
+                <canvas id="chart-distribution"></canvas>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-header">
+                <span class="panel-title">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+                  Response Time & Request Outcomes
+                </span>
+                <span class="badge badge-neutral">Last 30 Requests</span>
+              </div>
+              <div class="panel-body" style="height: 260px;">
+                <canvas id="chart-latency-trend"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- Live Server Health Summary & Recent Alerts -->
+          <div class="grid-2">
+            <div class="panel">
+              <div class="panel-header">
+                <span class="panel-title">Server Fleet Status</span>
+                <button class="btn btn-secondary btn-sm" onclick="navigateTo('servers')">Manage Fleet</button>
+              </div>
+              <div class="table-container">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Server</th>
+                      <th>URL</th>
+                      <th>Health</th>
+                      <th>Circuit</th>
+                      <th>Requests</th>
+                      <th>Latency</th>
+                    </tr>
+                  </thead>
+                  <tbody id="overview-servers-tbody">
+                    <tr><td colspan="6" class="empty-state">Loading server fleet status...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-header">
+                <span class="panel-title">Recent Circuit & Fault Events</span>
+                <button class="btn btn-secondary btn-sm" onclick="navigateTo('logs')">View Full Logs</button>
+              </div>
+              <div class="panel-body" style="max-height: 280px; overflow-y: auto;">
+                <div class="timeline" id="overview-events-timeline">
+                  <div class="empty-state">No failure events recorded yet. System operational.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ==================== VIEW 2: BACKEND SERVERS ==================== -->
+        <div class="view-pane" id="view-servers">
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <span class="panel-title">Backend Server Registry</span>
+                <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
+                  Configure, monitor, and override backend server states and circuit thresholds.
+                </div>
+              </div>
+              <button class="btn btn-primary btn-sm" id="btn-open-add-server">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                Register Backend
+              </button>
+            </div>
+
+            <div class="table-container">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Server ID / Name</th>
+                    <th>Destination URL</th>
+                    <th>Status</th>
+                    <th>Circuit State</th>
+                    <th>Weight</th>
+                    <th>Active Conns</th>
+                    <th>Failures</th>
+                    <th>Total Req</th>
+                    <th>Avg Latency</th>
+                    <th>Last Check</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="servers-table-body">
+                  <tr><td colspan="11" class="empty-state">Loading backend servers...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ==================== VIEW 3: LOAD BALANCING ALGORITHMS ==================== -->
+        <div class="view-pane" id="view-algorithms">
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">Load-Balancing Scheduling Algorithms</span>
+              <span class="badge badge-info">Deterministic Routing</span>
+            </div>
+            <div class="panel-body">
+              <p style="color: var(--text-secondary); margin-bottom: 20px;">
+                Select the scheduling algorithm used by the reverse proxy to distribute client requests across healthy backend servers. Requests are only routed to servers that are enabled, healthy, and whose circuit breaker is in the <strong style="color: var(--color-healthy);">CLOSED</strong> state.
+              </p>
+
+              <div style="display: flex; gap: 16px; align-items: center; margin-bottom: 28px; background: var(--bg-input); padding: 16px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+                <label style="font-weight: 600; font-size: 13px; color: var(--text-primary);">Active Algorithm:</label>
+                <select id="select-active-algo" class="form-control" style="width: 280px;">
+                  <option value="ROUND_ROBIN">Round Robin</option>
+                  <option value="WEIGHTED_ROUND_ROBIN">Weighted Round Robin</option>
+                  <option value="LEAST_CONNECTIONS">Least Connections</option>
+                </select>
+                <button class="btn btn-primary btn-sm" id="btn-save-algo">Apply Algorithm</button>
+                <span id="algo-applied-msg" style="font-size: 12px; color: var(--color-healthy); display: none;">Algorithm updated successfully!</span>
+              </div>
+
+              <!-- Algorithm Comparative Breakdown Cards -->
+              <div class="grid-2" style="margin-bottom: 24px;">
+                <div class="panel" style="background: var(--bg-card);">
+                  <div class="panel-header">
+                    <span class="panel-title">1. Round Robin</span>
+                    <span class="badge badge-neutral">Modulo Cyclical</span>
+                  </div>
+                  <div class="panel-body">
+                    <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 10px;">
+                      Equally alternates incoming requests across available servers in sequential order using an atomic counter:
+                    </p>
+                    <div class="code-box">target_index = (atomic_counter++) % num_eligible_servers</div>
+                    <ul style="font-size: 12px; color: var(--text-muted); padding-left: 18px;">
+                      <li>Best suited for homogenous servers with identical compute capacity.</li>
+                      <li>Thread-safe with atomic index wrapping.</li>
+                    </ul>
+                  </div>
+                </div>
+
+                <div class="panel" style="background: var(--bg-card);">
+                  <div class="panel-header">
+                    <span class="panel-title">2. Weighted Round Robin</span>
+                    <span class="badge badge-neutral">Smooth Nginx Algorithm</span>
+                  </div>
+                  <div class="panel-body">
+                    <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 10px;">
+                      Distributes requests proportionally to server compute weights (e.g., Alpha=3, Beta=2, Gamma=1) using a smooth deficit round-robin algorithm:
+                    </p>
+                    <div class="code-box">current_weight[i] += weight[i]; best = max(current); best -= total_weight;</div>
+                    <ul style="font-size: 12px; color: var(--text-muted); padding-left: 18px;">
+                      <li>Prevents burst clustering by smoothly interleaving requests.</li>
+                      <li>Server with weight 3 receives 50% of traffic in a 3-2-1 cluster.</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <div class="panel" style="background: var(--bg-card);">
+                <div class="panel-header">
+                  <span class="panel-title">3. Least Connections</span>
+                  <span class="badge badge-neutral">Dynamic Active Tracking</span>
+                </div>
+                <div class="panel-body">
+                  <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 10px;">
+                    Inspects real-time concurrent active requests currently in flight on each server and directs new traffic to the server with the lowest active load:
+                  </p>
+                  <div class="code-box">eligible = argmin(active_connections[s]); tie_break = lowest_latency || round_robin</div>
+                  <ul style="font-size: 12px; color: var(--text-muted); padding-left: 18px;">
+                    <li>Ideal for heterogeneous workloads with varying request execution times.</li>
+                    <li>Connections are incremented atomically on dispatch and decremented in a guaranteed finally block upon response.</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ==================== VIEW 4: CIRCUIT BREAKER ==================== -->
+        <div class="view-pane" id="view-circuit-breaker">
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">Circuit Breaker Fault Isolation Engine</span>
+              <span class="badge badge-info">Per-Backend State Machine</span>
+            </div>
+            <div class="panel-body">
+              <p style="color: var(--text-secondary); margin-bottom: 24px;">
+                Each backend server is governed by an independent 3-state Circuit Breaker. When repeated consecutive failures exceed the configured threshold, the circuit trips to <strong style="color: var(--color-danger);">OPEN</strong>, immediately isolating the failing backend so user traffic is never degraded.
+              </p>
+
+              <!-- State Machine Diagram -->
+              <div class="circuit-state-diagram">
+                <div class="state-node closed active">
+                  <div class="state-circle">CLOSED</div>
+                  <div class="state-title" style="color: var(--color-healthy);">CLOSED</div>
+                  <div class="state-desc">Normal Traffic Permitted.<br>Failures count toward threshold.</div>
+                </div>
+
+                <div style="font-size: 20px; color: var(--text-muted);">&rarr; Failures &ge; Threshold &rarr;</div>
+
+                <div class="state-node open">
+                  <div class="state-circle">OPEN</div>
+                  <div class="state-title" style="color: var(--color-danger);">OPEN</div>
+                  <div class="state-desc">Isolated from Normal Traffic.<br>Wait recovery delay timer.</div>
+                </div>
+
+                <div style="font-size: 20px; color: var(--text-muted);">&rarr; Delay Elapsed &rarr;</div>
+
+                <div class="state-node half-open">
+                  <div class="state-circle">HALF-OPEN</div>
+                  <div class="state-title" style="color: var(--color-warning);">HALF-OPEN</div>
+                  <div class="state-desc">Probing Recovery.<br>Trials verify stability.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Per-Server Circuit Cards -->
+          <div class="grid-2" id="circuit-server-cards-container">
+            <!-- Dynamically populated -->
+          </div>
+
+          <!-- Circuit Transitions Table -->
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">Circuit State Transition History</span>
+              <span class="badge badge-neutral">Audit Trail</span>
+            </div>
+            <div class="table-container">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Timestamp</th>
+                    <th>Backend</th>
+                    <th>From State</th>
+                    <th>To State</th>
+                    <th>Failure Count</th>
+                    <th>Transition Reason</th>
+                  </tr>
+                </thead>
+                <tbody id="circuit-transitions-tbody">
+                  <tr><td colspan="6" class="empty-state">No circuit transitions recorded yet.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ==================== VIEW 5: RECOVERY INTELLIGENCE DASHBOARD ==================== -->
+        <div class="view-pane" id="view-recovery-intelligence">
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <span class="panel-title">Fault Detection & Recovery Intelligence Analytics</span>
+                <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
+                  Empirical measurements of fault detection delay, recovery duration, and failover continuity.
+                </div>
+              </div>
+              <button class="btn btn-secondary btn-sm" id="btn-refresh-intelligence">Refresh Metrics</button>
+            </div>
+            
+            <div class="panel-body">
+              <!-- 4 Intelligence Metric Cards -->
+              <div class="metrics-grid" style="margin-bottom: 24px;">
+                <div class="metric-card">
+                  <div class="metric-header">
+                    <span class="metric-label">Avg Detection Latency</span>
+                    <span class="badge badge-warning">Detection</span>
+                  </div>
+                  <div class="metric-value" id="intel-det-time">0.0 ms</div>
+                  <div class="metric-sub">Controlled injection &rarr; OPEN circuit</div>
+                </div>
+
+                <div class="metric-card">
+                  <div class="metric-header">
+                    <span class="metric-label">Avg Recovery Duration</span>
+                    <span class="badge badge-healthy">Recovery</span>
+                  </div>
+                  <div class="metric-value" id="intel-rec-time">0.0 ms</div>
+                  <div class="metric-sub">Recovery probe start &rarr; CLOSED</div>
+                </div>
+
+                <div class="metric-card">
+                  <div class="metric-header">
+                    <span class="metric-label">Failover Continuity</span>
+                    <span class="badge badge-healthy" id="intel-continuity-badge">Maintained</span>
+                  </div>
+                  <div class="metric-value" id="intel-continuity-text">100%</div>
+                  <div class="metric-sub">Traffic survived backend failure</div>
+                </div>
+
+                <div class="metric-card">
+                  <div class="metric-header">
+                    <span class="metric-label">Tracked Incidents</span>
+                    <span class="badge badge-info">Audited</span>
+                  </div>
+                  <div class="metric-value" id="intel-incidents-count">0</div>
+                  <div class="metric-sub"><span id="intel-recovered-count">0</span> fully recovered</div>
+                </div>
+              </div>
+
+              <!-- Explanation Alert -->
+              <div style="background: rgba(59, 130, 246, 0.08); border-left: 4px solid var(--accent-primary); padding: 12px 16px; border-radius: var(--radius-sm); margin-bottom: 24px; font-size: 13px; color: var(--text-secondary);">
+                <strong>Academic Performance Metric Definitions:</strong><br>
+                &bull; <strong>Fault Detection Time:</strong> Elapsed duration from when an error/delay was injected into a backend until the Health Monitor counted threshold failures and flipped the Circuit Breaker to OPEN.<br>
+                &bull; <strong>Recovery Time:</strong> Elapsed duration from when the backend was restored to health until the recovery probe cycle validated stability and restored the circuit to CLOSED.<br>
+                &bull; <strong>Failover Continuity:</strong> Verification that remaining eligible backends transparently absorbed 100% of subsequent user traffic without returning HTTP 503 errors.
+              </div>
+
+              <!-- Fault Incidents Log Table -->
+              <h3 style="font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 12px;">Recorded Fault & Recovery Incidents</h3>
+              <div class="table-container">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Event ID</th>
+                      <th>Backend</th>
+                      <th>Fault Type</th>
+                      <th>Injected At</th>
+                      <th>Detected At</th>
+                      <th>Detection Latency</th>
+                      <th>Recovered At</th>
+                      <th>Recovery Duration</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="intel-faults-tbody">
+                    <tr><td colspan="9" class="empty-state">No fault events recorded yet. Run a fault test in the Fault-Injection Lab.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ==================== VIEW 6: FAULT-INJECTION LAB ==================== -->
+        <div class="view-pane" id="view-fault-lab">
+          <!-- Cluster Control Header -->
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <span class="panel-title">Controlled Local Fault-Injection Lab</span>
+                <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
+                  Safely inject timeouts, 500 errors, or crashes into local test backends to observe automatic failure isolation and recovery.
+                </div>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <button class="btn btn-secondary btn-sm" id="btn-cluster-start-all">Start All Backends</button>
+                <button class="btn btn-secondary btn-sm" id="btn-cluster-stop-all">Stop All Backends</button>
+              </div>
+            </div>
+
+            <div class="panel-body">
+              <!-- Interactive Fault Triggers for Backend A, B, C -->
+              <div class="grid-2" style="grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin-bottom: 24px;">
+                
+                <!-- Card for Backend Alpha -->
+                <div class="panel" style="background: var(--bg-card); margin-bottom: 0;">
+                  <div class="panel-header">
+                    <div>
+                      <span class="panel-title">Backend Alpha</span>
+                      <span class="mono" style="font-size: 11px; color: var(--text-muted);">http://127.0.0.1:8001</span>
+                    </div>
+                    <span class="badge badge-healthy" id="lab-badge-alpha">Online</span>
+                  </div>
+                  <div class="panel-body" style="display: flex; flex-direction: column; gap: 8px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                      <button class="btn btn-warning btn-sm" onclick="injectFault('srv-backend-a', 'DELAY', 4000)">Inject 4s Delay</button>
+                      <button class="btn btn-danger btn-sm" onclick="injectFault('srv-backend-a', 'ERROR_500', 500)">Inject HTTP 500</button>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                      <button class="btn btn-danger btn-sm" onclick="injectFault('srv-backend-a', 'CRASH', null)">Crash Server</button>
+                      <button class="btn btn-success btn-sm" onclick="injectFault('srv-backend-a', 'RECOVER', null)">Restore Health</button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Card for Backend Beta -->
+                <div class="panel" style="background: var(--bg-card); margin-bottom: 0;">
+                  <div class="panel-header">
+                    <div>
+                      <span class="panel-title">Backend Beta</span>
+                      <span class="mono" style="font-size: 11px; color: var(--text-muted);">http://127.0.0.1:8002</span>
+                    </div>
+                    <span class="badge badge-healthy" id="lab-badge-beta">Online</span>
+                  </div>
+                  <div class="panel-body" style="display: flex; flex-direction: column; gap: 8px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                      <button class="btn btn-warning btn-sm" onclick="injectFault('srv-backend-b', 'DELAY', 4000)">Inject 4s Delay</button>
+                      <button class="btn btn-danger btn-sm" onclick="injectFault('srv-backend-b', 'ERROR_500', 500)">Inject HTTP 500</button>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                      <button class="btn btn-danger btn-sm" onclick="injectFault('srv-backend-b', 'CRASH', null)">Crash Server</button>
+                      <button class="btn btn-success btn-sm" onclick="injectFault('srv-backend-b', 'RECOVER', null)">Restore Health</button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Card for Backend Gamma -->
+                <div class="panel" style="background: var(--bg-card); margin-bottom: 0;">
+                  <div class="panel-header">
+                    <div>
+                      <span class="panel-title">Backend Gamma</span>
+                      <span class="mono" style="font-size: 11px; color: var(--text-muted);">http://127.0.0.1:8003</span>
+                    </div>
+                    <span class="badge badge-healthy" id="lab-badge-gamma">Online</span>
+                  </div>
+                  <div class="panel-body" style="display: flex; flex-direction: column; gap: 8px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                      <button class="btn btn-warning btn-sm" onclick="injectFault('srv-backend-c', 'DELAY', 4000)">Inject 4s Delay</button>
+                      <button class="btn btn-danger btn-sm" onclick="injectFault('srv-backend-c', 'ERROR_500', 500)">Inject HTTP 500</button>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                      <button class="btn btn-danger btn-sm" onclick="injectFault('srv-backend-c', 'CRASH', null)">Crash Server</button>
+                      <button class="btn btn-success btn-sm" onclick="injectFault('srv-backend-c', 'RECOVER', null)">Restore Health</button>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              <!-- Synthetic Traffic Generator -->
+              <div class="panel" style="background: var(--bg-card); border-color: var(--border-hover); margin-bottom: 0;">
+                <div class="panel-header">
+                  <span class="panel-title">Synthetic Workload Traffic Generator</span>
+                  <span class="badge badge-info" id="workload-status-badge">Idle</span>
+                </div>
+                <div class="panel-body">
+                  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) 120px 100px; gap: 12px; align-items: end; margin-bottom: 16px;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                      <label class="form-label">Total Requests:</label>
+                      <input type="number" id="workload-req-count" class="form-control" value="50" min="5" max="500">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                      <label class="form-label">Concurrency (Threads):</label>
+                      <input type="number" id="workload-concurrency" class="form-control" value="2" min="1" max="10">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                      <label class="form-label">Delay Between Reqs (ms):</label>
+                      <input type="number" id="workload-delay-ms" class="form-control" value="30" min="0" max="1000">
+                    </div>
+                    <button class="btn btn-primary" id="btn-start-workload" style="height: 38px;">Generate Load</button>
+                    <button class="btn btn-danger" id="btn-stop-workload" style="height: 38px;">Stop Test</button>
+                  </div>
+
+                  <!-- Live Progress Bar -->
+                  <div id="workload-progress-area" style="display: none;">
+                    <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">
+                      <span>Progress: <strong id="workload-prog-text">0 / 50</strong></span>
+                      <span>Success: <strong id="workload-success-text" style="color: var(--color-healthy);">0</strong> | Failed: <strong id="workload-fail-text" style="color: var(--color-danger);">0</strong></span>
+                    </div>
+                    <div class="progress-container">
+                      <div class="progress-bar" id="workload-prog-bar" style="width: 0%;"></div>
+                    </div>
+                    <div style="margin-top: 10px; font-size: 12px; color: var(--text-muted); display: flex; gap: 12px;" id="workload-dist-pills">
+                      <!-- Backend distribution pills -->
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- ==================== VIEW 7: EVENT LOGS & CSV EXPORT ==================== -->
+        <div class="view-pane" id="view-logs">
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <span class="panel-title">Audit Logs & Searchable Event Records</span>
+                <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
+                  Filter request routing, health check probes, and export CSV reports.
+                </div>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <a href="/api/metrics/export/csv?type=requests" class="btn btn-secondary btn-sm" download>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                  Export Requests CSV
+                </a>
+                <a href="/api/metrics/export/csv?type=faults" class="btn btn-secondary btn-sm" download>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                  Export Faults CSV
+                </a>
+              </div>
+            </div>
+
+            <!-- Log Filters -->
+            <div style="padding: 14px 20px; border-bottom: 1px solid var(--border-subtle); display: flex; gap: 14px; background: rgba(0, 0, 0, 0.15);">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <label style="font-size: 12px; color: var(--text-muted);">Backend:</label>
+                <select id="log-filter-backend" class="form-control" style="width: 160px; padding: 4px 8px; font-size: 12px;">
+                  <option value="">All Backends</option>
+                  <option value="srv-backend-a">Backend Alpha</option>
+                  <option value="srv-backend-b">Backend Beta</option>
+                  <option value="srv-backend-c">Backend Gamma</option>
+                </select>
+              </div>
+
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <label style="font-size: 12px; color: var(--text-muted);">Status:</label>
+                <select id="log-filter-status" class="form-control" style="width: 140px; padding: 4px 8px; font-size: 12px;">
+                  <option value="">All Outcomes</option>
+                  <option value="success">Success Only</option>
+                  <option value="failure">Failure / 5xx Only</option>
+                </select>
+              </div>
+
+              <button class="btn btn-secondary btn-sm" id="btn-apply-log-filter">Filter Logs</button>
+            </div>
+
+            <div class="table-container">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Timestamp</th>
+                    <th>Req ID</th>
+                    <th>Method</th>
+                    <th>Path</th>
+                    <th>Selected Backend</th>
+                    <th>Algorithm</th>
+                    <th>HTTP Status</th>
+                    <th>Latency</th>
+                    <th>Outcome</th>
+                    <th>Error Details</th>
+                  </tr>
+                </thead>
+                <tbody id="logs-request-tbody">
+                  <tr><td colspan="10" class="empty-state">Loading request routing logs...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ==================== VIEW 8: SYSTEM SETTINGS ==================== -->
+        <div class="view-pane" id="view-settings">
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">System Configuration & Threshold Tuning</span>
+              <button class="btn btn-primary btn-sm" id="btn-save-settings">Save Configuration</button>
+            </div>
+            <div class="panel-body">
+              <form id="settings-form">
+                <div class="grid-2">
+                  <div class="form-group">
+                    <label class="form-label">Health Check Interval (seconds):</label>
+                    <input type="number" step="0.5" id="cfg-health-interval" class="form-control" value="3.0">
+                    <div class="form-help">Frequency of background probes sent to /health of all backends.</div>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label">Health Check Timeout (seconds):</label>
+                    <input type="number" step="0.5" id="cfg-health-timeout" class="form-control" value="1.5">
+                    <div class="form-help">Max probe response time before counting as timeout failure.</div>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label">Proxy Request Timeout (seconds):</label>
+                    <input type="number" step="0.5" id="cfg-request-timeout" class="form-control" value="3.0">
+                    <div class="form-help">Client reverse proxy request timeout before returning HTTP 504.</div>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label">Failure Threshold (consecutive):</label>
+                    <input type="number" id="cfg-failure-threshold" class="form-control" value="3">
+                    <div class="form-help">Consecutive probe/request failures required to trip circuit to OPEN.</div>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label">Recovery Threshold (consecutive):</label>
+                    <input type="number" id="cfg-recovery-threshold" class="form-control" value="2">
+                    <div class="form-help">Consecutive successful probes in HALF-OPEN to restore to CLOSED.</div>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label">Recovery Delay (seconds):</label>
+                    <input type="number" step="0.5" id="cfg-recovery-delay" class="form-control" value="5.0">
+                    <div class="form-help">Wait duration in OPEN state before testing recovery in HALF-OPEN.</div>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <!-- ==================== VIEW 9: DOCUMENTATION ==================== -->
+        <div class="view-pane" id="view-docs">
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">Academic Mini-Project Documentation & Architecture</span>
+              <span class="badge badge-info">CSE Mini-Project</span>
+            </div>
+            <div class="panel-body">
+              <div class="doc-section">
+                <h2>1. Project Abstract & Objective</h2>
+                <p>
+                  Modern distributed web architectures rely on load balancers to achieve high availability, fault tolerance, and horizontal scalability. Standard load balancers often lack intelligent, localized circuit breakers, continuing to forward traffic to failing instances until coarse health checks trigger. This project implements a full-stack, enterprise-grade <strong>Load Balancer with Fault Detection and Automatic Recovery</strong>.
+                </p>
+                <p>
+                  It features an RFC-compliant HTTP reverse proxy, three scheduling algorithms (Round Robin, Smooth Weighted Round Robin, and Least Connections), an autonomous per-backend Circuit Breaker state machine (CLOSED &harr; OPEN &harr; HALF-OPEN), a background health prober, and a Fault Detection and Recovery Intelligence Dashboard.
+                </p>
+              </div>
+
+              <div class="doc-section">
+                <h2>2. Architecture & Request Pipeline</h2>
+                <div class="code-box">
+[Client / Browser]
+       &darr; (HTTP Request: /proxy/*)
+[Flask Reverse Proxy (app.py :5000)]
+       &darr; (Query Eligible Backends)
+[Server Registry (SQLite + Memory Cache)]
+       &darr; (Filters: Enabled=1, Status!=UNHEALTHY, Circuit=CLOSED)
+[Scheduling Algorithm (Round Robin / Weighted / Least Connections)]
+       &darr; (Selected Eligible Backend)
+[Forward HTTP Request + Strip Hop-by-Hop Headers]
+       &darr; (Track Active Connection Count)
+[Backend Server Alpha:8001 / Beta:8002 / Gamma:8003]
+       &darr; (Return Response)
+[Metrics Engine + Circuit Breaker Result Logger]
+                </div>
+              </div>
+
+              <div class="doc-section">
+                <h2>3. Circuit Breaker Lifecycle & State Transitions</h2>
+                <ul>
+                  <li><strong>CLOSED:</strong> The backend is operating normally. In-flight and new requests are dispatched freely. If consecutive failures reach the configured failure threshold (default: 3), the circuit transitions to <strong>OPEN</strong>.</li>
+                  <li><strong>OPEN:</strong> The backend is isolated from all user proxy traffic. An isolation timestamp is saved. While in OPEN state, user traffic is routed exclusively to remaining healthy backends. When the recovery delay (default: 5.0s) elapses, the circuit automatically transitions to <strong>HALF-OPEN</strong>.</li>
+                  <li><strong>HALF-OPEN:</strong> Normal client traffic remains excluded. Dedicated background health probes test the backend. If a probe fails, the circuit reopens to <strong>OPEN</strong>. If consecutive successful probes reach the recovery threshold (default: 2), the circuit transitions back to <strong>CLOSED</strong>, fully restoring traffic routing.</li>
+                </ul>
+              </div>
+
+              <div class="doc-section">
+                <h2>4. Mathematical Definitions of Metrics</h2>
+                <ul>
+                  <li><strong>Fault Detection Latency ($T_{\text{detect}}$):</strong> The exact elapsed duration from the controlled fault-injection timestamp ($t_{\text{fault}}$) until the health checker detects the failure threshold and triggers the circuit to OPEN ($t_{\text{open}}$):<br>
+                  $T_{\text{detect}} = t_{\text{open}} - t_{\text{fault}}$</li>
+                  <li><strong>Recovery Duration ($T_{\text{recover}}$):</strong> The elapsed duration from when a backend is healed ($t_{\text{heal}}$) until successful probes restore the circuit to CLOSED ($t_{\text{closed}}$):<br>
+                  $T_{\text{recover}} = t_{\text{closed}} - t_{\text{heal}}$</li>
+                  <li><strong>Failover Continuity:</strong> The percentage of requests that successfully returned status &lt; 500 through surviving healthy backends while a peer backend experienced failure.</li>
+                </ul>
+              </div>
+
+              <div class="doc-section">
+                <h2>5. Known Limitations & Single-Point-of-Failure (SPOF) Analysis</h2>
+                <p>
+                  As an academic mini-project running locally, the load balancer process itself runs on a single host (Port 5000). In a hyperscale production deployment, high availability for the load balancer tier itself is achieved using redundant nodes coordinated via Virtual Router Redundancy Protocol (VRRP), Keepalived, or BGP Anycast routing.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- Register/Edit Backend Modal -->
+  <div class="modal-backdrop" id="modal-server">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <span class="modal-title" id="modal-server-title">Register Backend Server</span>
+        <button class="btn btn-secondary btn-sm" id="btn-close-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="server-form">
+          <input type="hidden" id="form-is-edit" value="0">
+          <div class="form-group">
+            <label class="form-label">Server ID:</label>
+            <input type="text" id="form-server-id" class="form-control" placeholder="e.g. srv-backend-d" required>
+            <div class="form-help">Unique machine-readable identifier.</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Display Name:</label>
+            <input type="text" id="form-server-name" class="form-control" placeholder="e.g. Backend Delta" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Destination URL:</label>
+            <input type="url" id="form-server-url" class="form-control" placeholder="http://127.0.0.1:8004" required>
+            <div class="form-help">Must belong to allowed local test destination ports.</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Weight (1-10):</label>
+            <input type="number" id="form-server-weight" class="form-control" value="1" min="1" max="10">
+            <div class="form-help">Used by Weighted Round Robin scheduling.</div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btn-cancel-modal">Cancel</button>
+        <button class="btn btn-primary" id="btn-save-server">Save Server</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Main Application JavaScript -->
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

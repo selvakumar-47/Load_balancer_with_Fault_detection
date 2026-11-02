@@ -1,0 +1,28 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Pytest & testing cache
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local database instances (auto-created on app startup)
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+load_balancer_project.zip
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
